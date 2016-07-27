@@ -2,6 +2,7 @@
 
   <div class="wrapper">
     <p class="rss-subscribe">Subscribe <a href="{{ "/feed.xml" | prepend: site.baseurl }}">via RSS</a></p>
+    <p><a href="http://jekyllrb.com">Jekyll</a></p>
     <p>&copy; 2016 Eero Lihavainen </p>
   </div> <!-- .wrapper -->
 
