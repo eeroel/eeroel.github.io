@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Music visualization in Python, part 1"
-date:   2016-07-28 14:07:00 +0300
+date:   2016-07-29
 categories: 
 ---
 
