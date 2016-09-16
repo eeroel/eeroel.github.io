@@ -5,7 +5,7 @@ permalink: /about/
 ---
 
 I apply image processing, computer vision and machine learning to interesting
-problems. This is my personal blog, where I may write anything I happen to be
+problems. This is my personal blog, where I write anything I happen to be
 interested in.
 
 I enjoy writing code in high-level languages such as Python and MATLAB, 
