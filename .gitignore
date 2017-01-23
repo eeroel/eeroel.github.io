@@ -4,3 +4,4 @@ _site/
 deploy.sh
 *.swp
 *~
+IDEAS.markdown
