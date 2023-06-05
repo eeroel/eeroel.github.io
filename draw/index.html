@@ -171,25 +171,10 @@ bufferContext.scale(pixelRatio, pixelRatio);
             // TODO: use simplified drawing here for the previous paths 
             // => naive only for the newest one
             for (const path of frame.paths) {
-                bufferContext.beginPath();
-                const points = path.points;
-
-                bufferContext.moveTo(points[0].x, points[0].y);
-
-                for (let i = 1; i < points.length; i++) {
-                    bufferContext.lineTo(points[i].x, points[i].y);
-                }
-
-                bufferContext.lineWidth = path.style.lineWidth;
-                bufferContext.strokeStyle = path.style.strokeStyle;
-                bufferContext.globalAlpha = path.style.globalAlpha;
-                bufferContext.lineCap = path.style.lineCap;
-                bufferContext.lineJoin = path.style.lineJoin;
-
-                bufferContext.stroke();
+                drawSmoothPath(path, bufferContext)
             }
-            // even ChatGPT couldn't come up with this stuff
-            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
+
+            context.drawImage(bufferCanvas, 0, 0, bufferCanvas.width, bufferCanvas.height, 0, 0, canvas.width/pixelRatio, canvas.height/pixelRatio);
         }
 
         function redrawNaive(frames, currentFrameIndex, drawGhost = false) {
@@ -218,8 +203,8 @@ bufferContext.scale(pixelRatio, pixelRatio);
 
                 bufferContext.stroke();
             }
-            // even ChatGPT couldn't come up with this stuff
-            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
+
+            context.drawImage(bufferCanvas, 0, 0, bufferCanvas.width, bufferCanvas.height, 0, 0, canvas.width/pixelRatio, canvas.height/pixelRatio);
         }
 
         function redraw(frames, currentFrameIndex, drawGhost = false) {
@@ -235,8 +220,8 @@ bufferContext.scale(pixelRatio, pixelRatio);
                 drawSmoothPath(path, bufferContext);
 
             }
-            // even ChatGPT couldn't come up with this stuff
-            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
+
+            context.drawImage(bufferCanvas, 0, 0, bufferCanvas.width, bufferCanvas.height, 0, 0, canvas.width/pixelRatio, canvas.height/pixelRatio);
 
         }
 
