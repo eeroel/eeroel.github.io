@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Freehand Drawing App with Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: #fff;
+            touch-action: none;
+        }
+
+        #toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #f1f1f1;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #toolbar input[type="range"] {
+            width: 100px;
+            margin-right: 10px;
+        }
+
+        .button-container {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .button-container>button {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+    <div id="toolbar">
+        <input type="range" id="strokeWidth" min="1" max="50" value="3">
+        <input type="range" id="opacity" min="0" max="1" step="0.1" value="1">
+        <input type="color" id="color" value="#000000">
+        <button id="undoButton">Undo</button>
+        <button id="redoButton">Redo</button>
+        <button id="clearButton">Clear</button>
+        <div class="button-container">
+            <button id="newFrameButton">New Frame</button>
+            <button id="playButton">Play</button>
+            <button id="stopButton">Stop</button>
+        </div>
+        <div>
+            <span id="frameNumber"></span>
+            <button id="backButton">Back</button>
+            <button id="forwardButton">Forward</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        // Create an off-screen canvas as a buffer
+        const bufferCanvas = document.createElement('canvas');
+        const bufferContext = bufferCanvas.getContext('2d');
+
+        // Set canvas dimensions to fill the screen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        bufferCanvas.width = canvas.width;
+        bufferCanvas.height = canvas.height;
+
+        let animationTimeout; // Variable to store the animation timeout
+        let originalFrameIndex;
+        let ghostFrameIndex;
+
+        const ghostToggle = true;  // TODO make this toggleable
+
+
+
+        function drawSmoothPath(path, context) {
+            context.beginPath();
+            const simplifiedPoints = simplifyPath(path.points, 0.01); // Adjust the tolerance value as desired
+
+            context.moveTo(simplifiedPoints[0].x, simplifiedPoints[0].y);
+
+            for (let i = 1; i < simplifiedPoints.length - 2; i++) {
+                const point1 = simplifiedPoints[i];
+                const point2 = simplifiedPoints[i + 1];
+                const controlX = (point1.x + point2.x) / 2;
+                const controlY = (point1.y + point2.y) / 2;
+
+                context.quadraticCurveTo(point1.x, point1.y, controlX, controlY);
+            }
+
+            // Draw the last segment as a straight line
+            context.lineTo(simplifiedPoints[simplifiedPoints.length - 1].x, simplifiedPoints[simplifiedPoints.length - 1].y);
+
+            context.lineWidth = path.style.lineWidth;
+            context.strokeStyle = path.style.strokeStyle;
+            context.lineCap = path.style.lineCap;
+            context.lineJoin = path.style.lineJoin;
+
+            context.stroke();
+        }
+
+
+
+        function startDrawing(e, frame) {
+            const { clientX, clientY } = e.touches ? e.touches[0] : e;
+
+            ghostFrameIndex = currentFrameIndex; // Set ghostFrameIndex to current frame index
+
+            const currentPath = {
+                points: [{ x: clientX, y: clientY }],
+                style: {
+                    lineWidth: parseInt(document.getElementById('strokeWidth').value),
+                    strokeStyle: document.getElementById('color').value,
+                    globalAlpha: parseFloat(document.getElementById('opacity').value),
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }
+            };
+
+            frame.paths.push(currentPath);
+
+            return true;
+        }
+
+        function draw(e, frame, drawGhost = false) {
+            const { clientX, clientY } = e.touches ? e.touches[0] : e;
+
+            const currentPath = frame.paths[frame.paths.length - 1];
+            currentPath.points.push({ x: clientX, y: clientY });
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            bufferContext.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+
+            if (drawGhost) drawGhostFrame(frames, currentFrameIndex)
+
+            // TODO: use simplified drawing here for the previous paths 
+            // => naive only for the newest one
+            for (const path of frame.paths) {
+                bufferContext.beginPath();
+                const points = path.points;
+
+                bufferContext.moveTo(points[0].x, points[0].y);
+
+                for (let i = 1; i < points.length; i++) {
+                    bufferContext.lineTo(points[i].x, points[i].y);
+                }
+
+                bufferContext.lineWidth = path.style.lineWidth;
+                bufferContext.strokeStyle = path.style.strokeStyle;
+                bufferContext.globalAlpha = path.style.globalAlpha;
+                bufferContext.lineCap = path.style.lineCap;
+                bufferContext.lineJoin = path.style.lineJoin;
+
+                bufferContext.stroke();
+            }
+
+            context.drawImage(bufferCanvas, 0, 0);
+        }
+
+        function redrawNaive(frames, currentFrameIndex, drawGhost = false) {
+            const frame = frames[currentFrameIndex];
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            bufferContext.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+
+            if (drawGhost) drawGhostFrame(frames, currentFrameIndex); // Draw the ghost frame
+
+            for (const path of frame.paths) {
+                bufferContext.beginPath();
+                const points = path.points;
+
+                bufferContext.moveTo(points[0].x, points[0].y);
+
+                for (let i = 1; i < points.length; i++) {
+                    bufferContext.lineTo(points[i].x, points[i].y);
+                }
+
+                bufferContext.lineWidth = path.style.lineWidth;
+                bufferContext.strokeStyle = path.style.strokeStyle;
+                bufferContext.globalAlpha = path.style.globalAlpha;
+                bufferContext.lineCap = path.style.lineCap;
+                bufferContext.lineJoin = path.style.lineJoin;
+
+                bufferContext.stroke();
+            }
+
+            context.drawImage(bufferCanvas, 0, 0);
+        }
+
+        function redraw(frames, currentFrameIndex, drawGhost = false) {
+            // TODO: simplify only once !
+            const frame = frames[currentFrameIndex];
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            bufferContext.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+
+            if (drawGhost) drawGhostFrame(frames, currentFrameIndex); // Draw the ghost frame
+
+            for (const path of frame.paths) {
+                drawSmoothPath(path, bufferContext);
+
+            }
+
+            context.drawImage(bufferCanvas, 0, 0);
+
+
+        }
+
+        function drawGhostFrame(frames, currentFrameIndex) {
+            if (currentFrameIndex > 0) {
+                const ghostFrame = frames[currentFrameIndex - 1];
+
+                context.save();
+                context.globalAlpha = 0.5; // Lower opacity for ghost frame
+
+                for (const path of ghostFrame.paths) {
+                    drawSmoothPath(path, context);
+
+
+                }
+
+                context.restore();
+            }
+        }
+
+        function drawGhostFrameNaive(frames, currentFrameIndex) {
+            if (currentFrameIndex > 0) {
+                const ghostFrame = frames[currentFrameIndex - 1];
+
+                context.save();
+                context.globalAlpha = 0.5; // Lower opacity for ghost frame
+
+                for (const path of ghostFrame.paths) {
+                    context.beginPath();
+                    const points = path.points;
+
+                    context.moveTo(points[0].x, points[0].y);
+
+                    for (let i = 1; i < points.length; i++) {
+                        context.lineTo(points[i].x, points[i].y);
+                    }
+
+                    context.lineWidth = path.style.lineWidth;
+                    context.strokeStyle = path.style.strokeStyle;
+                    context.lineCap = path.style.lineCap;
+                    context.lineJoin = path.style.lineJoin;
+
+                    context.stroke();
+                }
+
+                context.restore();
+            }
+        }
+
+        function stopDrawing(frame) {
+            if (frame && frame.paths.length > 0) {
+                const currentPath = frame.paths[frame.paths.length - 1];
+                if (currentPath.points.length > 1) {
+                    frame.operations.push({
+                        type: 'draw',
+                        data: currentPath
+                    });
+                }
+                // redraw smoothed curve
+                redraw(frames, currentFrameIndex, ghostToggle);
+            }
+        }
+
+        function undo(frames, currentFrameIndex) {
+            const frame = frames[currentFrameIndex]
+            if (frame.operations.length > 0) {
+                const operation = frame.operations.pop();
+                if (operation.type === 'draw') {
+                    frame.paths.pop();
+                    redraw(frames, currentFrameIndex, ghostToggle);
+                }
+            }
+        }
+
+        function clearFrame(frame) {
+            frame.paths.length = 0;
+            frame.operations.length = 0;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            bufferContext.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+        }
+
+        function updateFrameNumber(frameIndex) {
+            const frameNumberElement = document.getElementById('frameNumber');
+            frameNumberElement.innerText = `Frame: ${frameIndex + 1} / ${frames.length}`;
+        }
+
+        function createNewFrame(frames, currentFrameIndex) {
+            const newFrame = {
+                paths: [],
+                operations: []
+            };
+            frames.splice(currentFrameIndex + 1, 0, newFrame);
+            clearFrame(newFrame);
+            currentFrameIndex++;
+            updateFrameNumber(currentFrameIndex);
+            redraw(frames, currentFrameIndex, ghostToggle); // Redraw the current frame with the ghost image
+            return currentFrameIndex; // Return the updated currentFrameIndex
+        }
+
+
+        function goToPreviousFrame(frames, currentFrameIndex) {
+            if (currentFrameIndex > 0) {
+                currentFrameIndex--;
+            } else {
+                currentFrameIndex = frames.length - 1; // Wrap around to the last frame
+            }
+
+            redraw(frames, currentFrameIndex, ghostToggle);
+            updateFrameNumber(currentFrameIndex);
+
+            return currentFrameIndex; // Return the updated currentFrameIndex
+        }
+
+        function goToNextFrame(frames, currentFrameIndex) {
+            if (currentFrameIndex < frames.length - 1) {
+                currentFrameIndex++;
+            } else {
+                currentFrameIndex = 0; // Wrap around to the first frame
+            }
+
+            redraw(frames, currentFrameIndex, ghostToggle);
+            updateFrameNumber(currentFrameIndex);
+
+            return currentFrameIndex; // Return the updated currentFrameIndex
+        }
+
+        // Rest of the code...
+
+
+        function playAnimation(frames, currentFrameIndex) {
+            originalFrameIndex = currentFrameIndex; // Store the original frame index
+
+            const frameDelay = 50; // milliseconds
+
+            function playNextFrame() {
+                if (currentFrameIndex >= frames.length) {
+                    currentFrameIndex = 0;
+                }
+
+                const frame = frames[currentFrameIndex];
+                if (frame) {
+                    redraw(frames, currentFrameIndex);
+                }
+
+                currentFrameIndex++;
+                if (currentFrameIndex >= frames.length) {
+                    currentFrameIndex = 0;
+                }
+
+                updateFrameNumber(currentFrameIndex); // Update frame number while playing
+
+                animationTimeout = setTimeout(playNextFrame, frameDelay);
+            }
+
+            playNextFrame();
+        }
+
+
+
+        function stopAnimation(frames, originalFrameIndex) {
+            clearTimeout(animationTimeout);
+            redraw(frames, originalFrameIndex, ghostToggle); // Restore the original frame
+            updateFrameNumber(originalFrameIndex); // Update frame number
+            return originalFrameIndex
+        }
+
+        // Initialize variables
+        let frames = [{
+            paths: [],
+            operations: []
+        }];
+        let currentFrameIndex = 0;
+
+        // Update frame number
+        updateFrameNumber(currentFrameIndex);
+
+        function handleDraw(e) {
+            const currentFrame = frames[currentFrameIndex];
+            // looks like this gets called only the first time? why not use the same code as redraw?
+            draw(e, currentFrame, ghostToggle);
+        }
+
+        // Event listeners
+        canvas.addEventListener('mousedown', (e) => {
+            const currentFrame = frames[currentFrameIndex];
+            if (startDrawing(e, currentFrame)) {
+                canvas.addEventListener('mousemove', handleDraw);
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            const currentFrame = frames[currentFrameIndex];
+            if (startDrawing(e, currentFrame)) {
+                canvas.addEventListener('touchmove', handleDraw);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            const currentFrame = frames[currentFrameIndex];
+            stopDrawing(currentFrame);
+            canvas.removeEventListener('mousemove', handleDraw);
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            const currentFrame = frames[currentFrameIndex];
+            stopDrawing(currentFrame);
+            canvas.removeEventListener('mousemove', handleDraw);
+        });
+
+        canvas.addEventListener('touchend', () => {
+            const currentFrame = frames[currentFrameIndex];
+            stopDrawing(currentFrame);
+            canvas.removeEventListener('touchmove', handleDraw);
+        });
+
+        undoButton.addEventListener('click', () => {
+            undo(frames, currentFrameIndex);
+        });
+
+        // Keyboard shortcut for undo (Ctrl + Z or Cmd + Z)
+        document.addEventListener('keydown', function (e) {
+            const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+            // Check for portable undo key combination
+            if ((isMacOS && e.metaKey && e.key === 'z') || (!isMacOS && e.ctrlKey && e.key === 'z')) {
+                undo(frames, currentFrameIndex);
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            const currentFrame = frames[currentFrameIndex];
+            clearFrame(currentFrame);
+        });
+
+        // Event listeners
+        newFrameButton.addEventListener('click', () => {
+            currentFrameIndex = createNewFrame(frames, currentFrameIndex);
+        });
+
+        backButton.addEventListener('click', () => {
+            currentFrameIndex = goToPreviousFrame(frames, currentFrameIndex);
+        });
+
+        forwardButton.addEventListener('click', () => {
+            currentFrameIndex = goToNextFrame(frames, currentFrameIndex);
+        });
+
+        playButton.addEventListener('click', () => {
+            playAnimation(frames, currentFrameIndex);
+        });
+
+        stopButton.addEventListener('click', () => {
+            currentFrameIndex = stopAnimation(frames, originalFrameIndex);
+        });
+
+
+        // math
+
+        function simplifyPath(points, tolerance) {
+            if (points.length <= 2) {
+                return points;
+            }
+
+            const firstPoint = points[0];
+            const lastPoint = points[points.length - 1];
+            let maxDistance = 0;
+            let maxIndex = 0;
+
+            for (let i = 1; i < points.length - 1; i++) {
+                const currentPoint = points[i];
+                const distance = pointLineDistance(currentPoint, firstPoint, lastPoint);
+
+                if (distance > maxDistance) {
+                    maxDistance = distance;
+                    maxIndex = i;
+                }
+            }
+
+            if (maxDistance > tolerance) {
+                const leftPoints = points.slice(0, maxIndex + 1);
+                const rightPoints = points.slice(maxIndex);
+
+                const simplifiedLeft = simplifyPath(leftPoints, tolerance);
+                const simplifiedRight = simplifyPath(rightPoints, tolerance);
+
+                return simplifiedLeft.slice(0, simplifiedLeft.length - 1).concat(simplifiedRight);
+            }
+
+            return [firstPoint, lastPoint];
+        }
+
+        function pointLineDistance(point, lineStart, lineEnd) {
+            const { x: px, y: py } = point;
+            const { x: lx1, y: ly1 } = lineStart;
+            const { x: lx2, y: ly2 } = lineEnd;
+
+            const A = px - lx1;
+            const B = py - ly1;
+            const C = lx2 - lx1;
+            const D = ly2 - ly1;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            const param = dot / lenSq;
+
+            let closestX, closestY;
+
+            if (param < 0) {
+                closestX = lx1;
+                closestY = ly1;
+            } else if (param > 1) {
+                closestX = lx2;
+                closestY = ly2;
+            } else {
+                closestX = lx1 + param * C;
+                closestY = ly1 + param * D;
+            }
+
+            const dx = px - closestX;
+            const dy = py - closestY;
+
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+
+
+    </script>
+</body>
+
+</html>
