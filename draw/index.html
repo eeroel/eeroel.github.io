@@ -14,6 +14,8 @@
         #canvas {
             background-color: #fff;
             touch-action: none;
+            width: 100vw;
+            height: 100vh;
         }
 
 
@@ -79,20 +81,24 @@
         <button id="forwardButton" title="Forward">&#9654;</button>
     </div>
     <script>
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
+const canvas = document.getElementById('canvas');
+const context = canvas.getContext('2d');
 
-        // Create an off-screen canvas as a buffer
-        const bufferCanvas = document.createElement('canvas');
-        const bufferContext = bufferCanvas.getContext('2d');
-
-        // Set canvas dimensions to fill the screen
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        bufferCanvas.width = canvas.width;
-        bufferCanvas.height = canvas.height;
+// Create an off-screen canvas as a buffer
+const bufferCanvas = document.createElement('canvas');
+const bufferContext = bufferCanvas.getContext('2d');
+const pixelRatio = window.devicePixelRatio || 1;
+canvas.width = window.innerWidth * pixelRatio;
+canvas.height = window.innerHeight * pixelRatio;
+canvas.style.width = '100%';
+canvas.style.height = '100%';
+bufferCanvas.width = canvas.width;
+bufferCanvas.height = canvas.height;
+bufferCanvas.style.width = '100%';
+bufferCanvas.style.height = '100%';
+// Scale the context to account for the higher pixel density
+context.scale(pixelRatio, pixelRatio);
+bufferContext.scale(pixelRatio, pixelRatio);
 
         let animationTimeout; // Variable to store the animation timeout
         let originalFrameIndex;
@@ -182,8 +188,8 @@
 
                 bufferContext.stroke();
             }
-
-            context.drawImage(bufferCanvas, 0, 0);
+            // even ChatGPT couldn't come up with this stuff
+            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
         }
 
         function redrawNaive(frames, currentFrameIndex, drawGhost = false) {
@@ -212,8 +218,8 @@
 
                 bufferContext.stroke();
             }
-
-            context.drawImage(bufferCanvas, 0, 0);
+            // even ChatGPT couldn't come up with this stuff
+            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
         }
 
         function redraw(frames, currentFrameIndex, drawGhost = false) {
@@ -229,9 +235,8 @@
                 drawSmoothPath(path, bufferContext);
 
             }
-
-            context.drawImage(bufferCanvas, 0, 0);
-
+            // even ChatGPT couldn't come up with this stuff
+            context.drawImage(bufferCanvas, 0, 0, canvas.width*0.5, canvas.height*0.5);
 
         }
 
@@ -486,37 +491,6 @@
         stopButton.addEventListener('click', () => {
             currentFrameIndex = stopAnimation(frames, originalFrameIndex);
         });
-
-
-        function resizeCanvas() {
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const canvasWidth = width * devicePixelRatio;
-    const canvasHeight = height * devicePixelRatio;
-
-    // Adjust the canvas size
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    // Adjust the canvas style to fit the visible area
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-    canvas.style.left = ((window.innerWidth - width) / 2) + 'px';
-    canvas.style.top = ((window.innerHeight - height) / 2) + 'px';
-
-    // Adjust the drawing context scale
-    context.scale(devicePixelRatio, devicePixelRatio);
-}
-
-
-// Call resizeCanvas() once at the beginning
-resizeCanvas();
-
-// Call resizeCanvas() whenever the window is resized
-window.addEventListener('resize', resizeCanvas);
-
-
 
         // math
 
