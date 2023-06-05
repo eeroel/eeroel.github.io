@@ -14,9 +14,8 @@
         #canvas {
             background-color: #fff;
             touch-action: none;
-            width: 100%;
-            height: 100%;
         }
+
 
         #toolbar {
             position: fixed;
@@ -487,6 +486,36 @@
         stopButton.addEventListener('click', () => {
             currentFrameIndex = stopAnimation(frames, originalFrameIndex);
         });
+
+
+        function resizeCanvas() {
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const canvasWidth = width * devicePixelRatio;
+    const canvasHeight = height * devicePixelRatio;
+
+    // Adjust the canvas size
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Adjust the canvas style to fit the visible area
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    canvas.style.left = ((window.innerWidth - width) / 2) + 'px';
+    canvas.style.top = ((window.innerHeight - height) / 2) + 'px';
+
+    // Adjust the drawing context scale
+    context.scale(devicePixelRatio, devicePixelRatio);
+}
+
+
+// Call resizeCanvas() once at the beginning
+resizeCanvas();
+
+// Call resizeCanvas() whenever the window is resized
+window.addEventListener('resize', resizeCanvas);
+
 
 
         // math
