@@ -1,0 +1,1092 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f6f2">
+<title>Japlanr</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root { color-scheme: light; --ink:#20231f; --muted:#70766e; --line:#e4e5de; --paper:#fff; --bg:#f7f6f2; --accent:#315b49; --pad:12px; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  main { width:min(820px,100%); margin:0 auto; padding:8px 8px 32px; }
+  h1 { margin:0; font-size:20px; line-height:1; letter-spacing:-.03em; }
+  h2 { margin:0 0 8px; font-size:14px; }
+  h2.sec { margin-top:18px; }
+  .panel { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:var(--pad); box-shadow:0 6px 24px #242b2010; }
+  .topbar { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .topbar select { flex:1; min-width:0; }
+  label { display:block; margin:0 0 6px; font-size:13px; font-weight:700; }
+  input, select, textarea { width:100%; min-height:40px; padding:8px 11px; border:1px solid #d7dad1; border-radius:10px; background:#fff; color:var(--ink); font:inherit; outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px #315b4918; }
+  textarea { min-height:0; resize:vertical; font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  input[type=checkbox] { width:18px; height:18px; min-height:0; padding:0; accent-color:var(--accent); flex:none; }
+  .field { margin-bottom:10px; }
+  .row { display:flex; gap:8px; margin-bottom:10px; }
+  .row input { flex:1; min-width:0; }
+  .tb { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  button { min-height:40px; padding:0 14px; border:0; border-radius:10px; background:var(--accent); color:white; font:650 14px system-ui,sans-serif; cursor:pointer; white-space:nowrap; }
+  button.secondary { background:#edf0eb; color:#28372e; }
+  button.small { min-height:32px; min-width:32px; padding:0 8px; font-size:13px; }
+  button:hover { filter:brightness(.96); }
+  button:disabled { opacity:.4; cursor:default; filter:none; }
+
+  .sechead { display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; }
+  .sechead h2 { margin:0; }
+  .imp { margin:0 0 10px; }
+  .imp .actions { margin-top:8px; }
+  .impmsg { margin-top:8px; font-size:13px; color:var(--muted); overflow-wrap:anywhere; }
+
+  /* map: full-bleed and sticky so lists can scroll underneath while you watch it */
+  #map { height:clamp(260px,44vh,440px); margin:0 calc(-1 * var(--pad)) 8px; border:solid var(--line); border-width:1px 0; border-radius:0; position:sticky; top:0; z-index:5; }
+
+  .legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; }
+  .lg { min-height:30px; min-width:38px; padding:0 8px; border-radius:999px; background:#fff; color:var(--c); border:2px solid var(--c); font-size:15px; line-height:1; }
+  .lg.on { background:var(--c); color:#fff; }
+
+  .list { list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .list li { display:flex; align-items:center; gap:8px; padding:6px 8px; border-top:1px solid var(--line); }
+  .list li:first-child { border-top:0; }
+  .list li.sel { background:#f1f6f3; }
+  .list .name { flex:1; min-width:0; text-align:left; background:none; color:var(--ink); padding:2px 0; min-height:0; white-space:normal; font-weight:600; }
+  .list .name small { display:block; color:var(--muted); font-weight:400; font-size:12px; }
+  .list .num { flex:none; width:26px; height:26px; border-radius:50%; color:#fff; font-size:12px; font-weight:700; display:grid; place-items:center; }
+  .btns { display:flex; gap:4px; flex:none; }
+  .catbtn { width:32px; height:32px; min-height:32px; min-width:32px; padding:0; border-radius:50%; font-size:15px; line-height:1; flex:none; }
+  .catbtn.on { box-shadow:0 0 0 2px #fff, 0 0 0 4px #20231f; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip { min-height:34px; padding:0 12px; border-radius:999px; background:#edf0eb; color:#28372e; }
+  .chip.on { background:var(--accent); color:#fff; }
+  .chip.add { background:#fff; border:1px dashed #b9c0b3; }
+  .dayhead { display:flex; justify-content:space-between; align-items:center; margin:0 0 6px; }
+
+  #results { margin:0 0 10px; }
+  .rhead { display:flex; justify-content:flex-end; margin-bottom:6px; }
+  .note { margin:10px 2px 0; color:var(--muted); font-size:11px; }
+  .result { margin-top:10px; padding:10px 12px; background:#f1f3ee; border-radius:10px; font-size:13px; overflow-wrap:anywhere; }
+  .result a { color:var(--accent); }
+  .warn { color:#9a5b00; margin-top:6px; }
+
+  details { margin-top:18px; border-top:1px solid var(--line); padding-top:10px; }
+  summary { cursor:pointer; font-weight:700; font-size:14px; }
+  .check { display:flex; gap:10px; align-items:center; margin:10px 0 0; font-weight:500; font-size:14px; }
+
+  /* map pins */
+  .pin { display:grid; place-items:center; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 5px #0006; color:#fff; font:700 13px system-ui,sans-serif; }
+  .pin.num { width:30px; height:30px; font-size:14px; }
+  .pin.dot { width:26px; height:26px; }
+  .pin.dim { opacity:.45; }
+  .pin.sel { transform:scale(1.25); box-shadow:0 0 0 3px #20231f66, 0 1px 5px #0006; }
+  .pop strong { display:block; }
+  .pop .pd { color:var(--muted); font-size:12px; max-width:220px; }
+  .pop .popcats { display:flex; gap:6px; margin:6px 0; }
+  .pop .popacts { display:flex; flex-wrap:wrap; gap:6px; }
+  .pop .popacts .ic { flex:1; }
+  .pop strong { padding-right:14px; }
+  .leaflet-popup-content { margin:10px 14px; }
+
+  @media (max-width:520px) {
+    :root { --pad:8px; }
+    main { padding:0 0 24px; }
+    .panel { border-radius:0; border-left:0; border-right:0; box-shadow:none; }
+  }
+  .list .mid { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+  .list .mid .name { flex:none; width:100%; }
+  .list li.skip .num, .list li.skip .mid { opacity:.5; }
+  .list li.skip .name { text-decoration:line-through; }
+  .tm { width:auto; min-height:28px; padding:2px 6px; font-size:13px; border-radius:8px; }
+  .leaflet-control-scale { margin-bottom:8px !important; }
+  .leaflet-control-attribution { max-width:calc(100vw - 150px); }
+  .exp { margin-top:8px; font-size:13px; }
+  .exp strong { display:block; margin-top:6px; }
+  .exp div { padding:2px 0; }
+  .exp .add { color:#2d6a4f; } .exp .del { color:#b3261e; }
+  .exp .exbtns { display:flex; gap:8px; padding-top:8px; }
+  .nextbar { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:1000; max-width:calc(100% - 120px); padding:5px 12px; border-radius:999px; background:#20231fe6; color:#fff; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; box-shadow:0 1px 5px #0006; }
+  .nextbar[hidden] { display:none; }
+  .pop a.btn { display:grid; place-items:center; min-height:32px; padding:0 8px; border-radius:10px; background:#edf0eb; color:#28372e; font:650 13px system-ui,sans-serif; text-decoration:none; }
+</style>
+</head>
+<body>
+<main>
+  <section class="panel" aria-label="Japlanr">
+    <div class="topbar">
+      <h1>Japlanr</h1>
+      <select id="project" aria-label="Project"></select>
+      <button id="projRename" class="secondary" type="button" title="Rename project" aria-label="Rename project">✎</button>
+      <button id="projCopy" class="secondary" type="button" title="Copy project as JSON (for AI editing)" aria-label="Copy project as JSON"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.5"/></svg></button>
+      <button id="impToggle" class="secondary" type="button">Import</button>
+    </div>
+    <div id="impPanel" class="imp" hidden>
+      <input type="file" id="impFile" accept=".ics,.json,.geojson,text/calendar" aria-label="Import file" style="margin-bottom:8px">
+      <textarea id="impText" rows="6" placeholder="GeoJSON, .ics calendar text, or lat, lon lines (name optional)" spellcheck="false"></textarea>
+      <div class="actions">
+        <button id="impGo" class="small" type="button">Import</button>
+      </div>
+      <div class="impmsg">Calendar events (.ics) go to the day with their date, created if missing, with start time and location.</div>
+      <div id="impMsg" class="impmsg" hidden></div>
+      <div id="exPrev" hidden></div>
+    </div>
+
+    <div class="row">
+      <input id="place" placeholder="Search for a place (also used for Google Maps)" aria-label="Search for a place" autocomplete="off">
+      <button id="go" type="button">Search</button>
+      <button id="locate" class="secondary" type="button" title="Use my location" aria-label="Use my location">📍</button>
+      <button id="copyView" class="secondary" type="button" title="Copy view coordinates" aria-label="Copy view coordinates">📋</button>
+    </div>
+    <div id="results" hidden></div>
+
+    <div id="map"></div>
+    <div id="legend" class="legend"></div>
+
+    <div class="tb">
+      <button id="gmaps" type="button">Search Google Maps</button>
+      <button id="search" type="button">Search Tabelog</button>
+    </div>
+
+    <h2 class="sec">Days</h2>
+    <div id="days"></div>
+
+    <div class="sechead">
+      <h2>Saved places</h2>
+      <div id="listFilter" class="legend" style="margin:0"></div>
+    </div>
+    <ul id="places" class="list"></ul>
+
+    <details>
+      <summary>Settings</summary>
+      <div class="field" style="margin-top:12px">
+        <label for="radius">Place search radius</label>
+        <select id="radius">
+          <option value="10">10 km around the map view</option>
+          <option value="25">25 km around the map view</option>
+          <option value="50">50 km around the map view</option>
+          <option value="0">Anywhere</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="optHide"> Hide places that belong to other days while a day is selected</label>
+      <label class="check"><input type="checkbox" id="optArrows"> Show route arrows for the selected day</label>
+      <div class="actions" style="margin-top:12px">
+        <button id="bkDownload" class="small" type="button">Download backup</button>
+        <button id="bkRestore" class="secondary small" type="button">Restore backup</button>
+        <input type="file" id="bkFile" accept=".json,application/json" hidden>
+        <button id="projDelete" class="secondary small" type="button">Delete project</button>
+      </div>
+    </details>
+  </section>
+  <p class="note">Place search data © OpenStreetMap contributors (Nominatim).</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const h = (tag, props = {}, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'style') e.style.cssText = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (k.includes('-')) e.setAttribute(k, v);
+      else e[k] = v;
+    }
+    e.append(...kids.flat().filter(x => x != null && x !== false));
+    return e;
+  };
+
+  /* ---------- categories ---------- */
+  const CATS = {
+    food:  { label: 'Food',  emoji: '🍴',  color: '#e0702b' },
+    see:   { label: 'See',   emoji: '📷',  color: '#2f7fd1' },
+    sleep: { label: 'Sleep', emoji: '🛏️', color: '#7b52c7' },
+    other: { label: 'Other', emoji: '📍',  color: '#70766e' }
+  };
+  const CAT_KEYS = Object.keys(CATS);
+
+  /* ---------- state ---------- */
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const newProj = name => ({ id: uid(), name, places: [], days: [], activeDayId: null });
+  let S = { projects: [], currentId: null, hideOthers: true, arrows: true, radius: '10', listFilter: null, listSort: 'added', catOn: { food: true, see: true, sleep: true, other: true } };
+  let loadFailed = false;
+  try {
+    const raw = localStorage.getItem('tabelogPlanner');
+    if (raw) {
+      const j = JSON.parse(raw);
+      S = { ...S, ...j };
+      if (!Array.isArray(j.projects)) {   // older single-project save
+        const pr = newProj('My trip');
+        pr.places = j.places || []; pr.days = j.days || []; pr.activeDayId = j.activeDayId || null;
+        S.projects = [pr]; S.currentId = pr.id;
+        delete S.places; delete S.days; delete S.activeDayId;
+      }
+    } else {
+      const old = JSON.parse(localStorage.getItem('tabelogStops') || '[]');
+      if (old.length) {
+        const pr = newProj('My trip'), day = { id: uid(), name: 'Day 1', stops: [] };
+        old.forEach(o => { const p = { ...o, id: uid(), key: null, cat: 'see' }; pr.places.push(p); day.stops.push(p.id); });
+        pr.days.push(day); S.projects.push(pr);
+      }
+    }
+  } catch (e) {
+    try { const r = localStorage.getItem('tabelogPlanner'); if (r) { loadFailed = true; localStorage.setItem('tabelogPlanner.bak', r); } } catch (e2) {}
+  }
+  if (loadFailed) setTimeout(() => alert('Your saved data could not be read. It was left untouched (copy kept as "tabelogPlanner.bak"), and changes in this session will not be saved. Use Settings → Restore backup if you have one.'), 300);
+  if (!S.projects.length) S.projects.push(newProj('My trip'));
+  if (!S.projects.some(p => p.id === S.currentId)) S.currentId = S.projects[0].id;
+  S.catOn = { food: true, see: true, sleep: true, other: true, ...(S.catOn || {}) };
+  S.projects.forEach(pr => {
+    pr.places.forEach(p => { if (!CATS[p.cat]) p.cat = 'other'; });
+    pr.days.forEach(d => { d.stops = d.stops.filter(id => pr.places.some(p => p.id === id)); d.times = d.times || {}; d.skipped = d.skipped || {}; d.date = d.date || null; });
+    if (!pr.days.some(d => d.id === pr.activeDayId)) pr.activeDayId = null;
+  });
+  // S.places / S.days / S.activeDayId always refer to the current project (and are not saved separately)
+  ['places', 'days', 'activeDayId'].forEach(k => Object.defineProperty(S, k, {
+    get: () => S.projects.find(p => p.id === S.currentId)[k],
+    set: v => { S.projects.find(p => p.id === S.currentId)[k] = v; },
+    enumerable: false, configurable: true
+  }));
+  const save = () => { if (loadFailed) return; try { localStorage.setItem('tabelogPlanner', JSON.stringify(S)); } catch (e) {} };
+
+  let selectedId = null;
+  let results = [], showingResults = false;
+
+  const placeById = id => S.places.find(p => p.id === id);
+  const activeDay = () => S.days.find(d => d.id === S.activeDayId) || null;
+  const daysOf = p => S.days.filter(d => d.stops.includes(p.id));
+  const isHidden = p => {
+    if (!S.catOn[p.cat]) return 'category';
+    const a = activeDay();
+    if (a && S.hideOthers && !a.stops.includes(p.id) && daysOf(p).length) return 'other';
+    return false;
+  };
+  const hiddenOnMap = p => p.id !== selectedId && isHidden(p);
+
+  /* ---------- map ---------- */
+  const map = L.map('map').setView([35.6595, 139.7005], 16); // Shibuya
+  map.createPane('route').style.zIndex = 610; // route lines: above pins (600)
+  map.createPane('itin').style.zIndex = 630; // itinerary + selected pins: above everything but tooltips/popups
+  map.createPane('arrows').style.zIndex = 620; // above pins (600), below tooltips/popups
+
+  // Optional: paste a free CARTO basemap key (https://carto.com/basemaps/apikey) to use CARTO Voyager.
+  const CARTO_KEY = '';
+  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, DeLorme, NAVTEQ, USGS, HERE, OpenStreetMap contributors'
+  });
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+  let baseLayers = { 'Esri Streets (English labels)': esri, 'Local names (OSM)': osm };
+  let base = esri;
+  if (CARTO_KEY) {
+    const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=' + encodeURIComponent(CARTO_KEY), {
+      maxZoom: 19, subdomains: 'abcd',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'
+    });
+    baseLayers = { 'CARTO Voyager (English)': carto, ...baseLayers };
+    base = carto;
+  }
+  base.addTo(map);
+  L.control.layers(baseLayers, null, { collapsed: true }).addTo(map);
+
+  const routeLayer = L.layerGroup().addTo(map);
+  const placeLayer = L.layerGroup().addTo(map);
+  const previewLayer = L.layerGroup().addTo(map);
+  const markers = new Map();
+
+  function goTo(s) {
+    if (s.bbox) map.fitBounds([[s.bbox[0], s.bbox[2]], [s.bbox[1], s.bbox[3]]], { maxZoom: 17 });
+    else map.setView([s.lat, s.lon], 16);
+  }
+
+  const pinIcon = (p, num, dim, sel) => {
+    const size = num ? 30 : 26;
+    return L.divIcon({
+      className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+      html: `<div class="pin ${num ? 'num' : 'dot'}${dim ? ' dim' : ''}${sel ? ' sel' : ''}" style="background:${CATS[p.cat].color}">${num || CATS[p.cat].emoji}</div>`
+    });
+  };
+
+  function popupFor(p) {
+    const a = activeDay();
+    const box = h('div', { class: 'pop' }, h('strong', { textContent: p.name }));
+    if (p.detail) box.append(h('div', { class: 'pd', textContent: p.detail }));
+    box.append(h('div', { class: 'popcats' }, CAT_KEYS.map(k => h('button', {
+      type: 'button', class: 'catbtn' + (p.cat === k ? ' on' : ''), style: `background:${CATS[k].color}`,
+      title: CATS[k].label, 'aria-label': CATS[k].label, textContent: CATS[k].emoji,
+      onclick: () => { p.cat = k; map.closePopup(); commit(); }
+    }))));
+    const acts = h('div', { class: 'popacts' });
+    if (a) {
+      const inDay = a.stops.includes(p.id);
+      acts.append(h('button', {
+        type: 'button', class: 'small', style: 'flex:1 1 100%', textContent: inDay ? `Remove from ${a.name}` : `＋ Add to ${a.name}`,
+        onclick: () => { map.closePopup(); toggleInDay(a, p); }
+      }));
+    }
+    acts.append(h('button', { type: 'button', class: 'small secondary ic', title: 'Rename', 'aria-label': 'Rename', textContent: '✎', onclick: () => renamePlace(p) }));
+    acts.append(h('a', { class: 'btn ic', title: 'Directions from my location (Google Maps)', 'aria-label': 'Directions from my location', href: `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`, target: '_blank', rel: 'noopener noreferrer', textContent: '🧭' }));
+    acts.append(h('button', { type: 'button', class: 'small secondary ic', title: 'Delete place', 'aria-label': 'Delete place', textContent: '🗑', onclick: () => deletePlace(p) }));
+    box.append(acts);
+    return box;
+  }
+
+  // Walking scale (~700 m across): zoom in on a pin tap, never out, with the pin low so its popup fits above.
+  function zoomToPin(p) {
+    if (map.getZoom() >= 16) return;
+    const c = map.project([p.lat, p.lon], 16).subtract([0, map.getSize().y * 0.2]);
+    map.setView(map.unproject(c, 16), 16);
+  }
+
+  function legPopup(p1, p2, a) {
+    const t1 = a.times[p1.id], t2 = a.times[p2.id], km = map.distance([p1.lat, p1.lon], [p2.lat, p2.lon]) / 1000;
+    const dir = m => `https://www.google.com/maps/dir/?api=1&origin=${p1.lat},${p1.lon}&destination=${p2.lat},${p2.lon}&travelmode=${m}`;
+    return h('div', { class: 'pop' },
+      h('strong', { textContent: `${p1.name} → ${p2.name}` }),
+      h('div', { class: 'pd', textContent: [t1 && t2 ? `${t1} → ${t2}` : '', `${km < 1 ? Math.round(km * 10) * 100 + ' m' : km.toFixed(1) + ' km'} straight line`].filter(Boolean).join(' · ') }),
+      h('div', { class: 'popacts' }, [['walking', '🚶', 'Walk'], ['transit', '🚆', 'Transit'], ['driving', '🚗', 'Drive']].map(([m, e, l]) =>
+        h('a', { class: 'btn ic', href: dir(m), target: '_blank', rel: 'noopener noreferrer', title: `${l} directions (Google Maps)`, 'aria-label': `${l} directions`, textContent: e }))));
+  }
+
+  function renderMap() {
+    placeLayer.clearLayers(); routeLayer.clearLayers(); markers.clear();
+    const a = activeDay();
+    S.places.forEach(p => {
+      if (hiddenOnMap(p)) return;
+      const idx = a ? a.stops.indexOf(p.id) : -1;
+      const dim = !!a && ((idx < 0 && daysOf(p).length > 0) || (idx >= 0 && !!a.skipped[p.id]));
+      const sel = p.id === selectedId;
+      const m = L.marker([p.lat, p.lon], {
+        icon: pinIcon(p, idx >= 0 ? idx + 1 : 0, dim, sel),
+        pane: idx >= 0 || sel ? 'itin' : 'markerPane',
+        zIndexOffset: sel ? 3000 : idx >= 0 ? 2000 : 0
+      });
+      m.bindTooltip(h('span', { textContent: (idx >= 0 && a.times[p.id] ? a.times[p.id] + ' · ' : '') + p.name }), { direction: 'top', offset: [0, -12] });
+      m.bindPopup(() => popupFor(p), { minWidth: 170, maxHeight: Math.max(120, map.getSize().y - 70) });
+      m.on('click', () => zoomToPin(p));
+      m.addTo(placeLayer);
+      markers.set(p.id, m);
+    });
+
+    if (a && S.arrows) {
+      const pts = a.stops.filter(id => !a.skipped[id]).map(placeById).filter(Boolean);
+      if (pts.length > 1) {
+        const ll = pts.map(p => [p.lat, p.lon]);
+        L.polyline(ll, { color: '#fff', weight: 7, opacity: .9, interactive: false, pane: 'route' }).addTo(routeLayer);
+        L.polyline(ll, { color: '#20231f', weight: 3, opacity: .85, interactive: false, pane: 'route' }).addTo(routeLayer);
+        for (let i = 0; i < pts.length - 1; i++) {
+          // Web Mercator is conformal, so the angle at zoom 0 is the angle on screen at any zoom.
+          const A = map.project([pts[i].lat, pts[i].lon], 0), B = map.project([pts[i + 1].lat, pts[i + 1].lon], 0);
+          if (A.distanceTo(B) < 1e-6) continue;
+          const p1 = pts[i], p2 = pts[i + 1];
+          L.polyline([[p1.lat, p1.lon], [p2.lat, p2.lon]], { color: '#000', weight: 18, opacity: .01, pane: 'route', bubblingMouseEvents: false })
+            .bindPopup(() => legPopup(p1, p2, a), { minWidth: 160 }).addTo(routeLayer);
+          const deg = Math.atan2(B.y - A.y, B.x - A.x) * 180 / Math.PI;
+          const mid = map.unproject(L.point((A.x + B.x) / 2, (A.y + B.y) / 2), 0);
+          L.marker(mid, {
+            pane: 'arrows', interactive: false, keyboard: false,
+            icon: L.divIcon({
+              className: '', iconSize: [20, 20], iconAnchor: [10, 10],
+              html: `<svg width="20" height="20" viewBox="-10 -10 20 20" style="display:block;transform:rotate(${deg}deg)"><path d="M-6 -6L7 0L-6 6L-3 0Z" fill="#20231f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`
+            })
+          }).addTo(routeLayer);
+        }
+      }
+    }
+    if (selectedId && markers.has(selectedId)) markers.get(selectedId).openTooltip();
+    updateNextBar();
+  }
+
+  const toMin = t => { const m = /^(\d\d):(\d\d)$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+  function nextEvent(a) {
+    const ev = a.stops.map(id => ({ p: placeById(id), t: a.times[id], m: toMin(a.times[id]) })).filter(e => e.p && e.m != null && !a.skipped[e.p.id]).sort((x, y) => x.m - y.m);
+    if (!ev.length) return null;
+    const n = new Date(), now = n.getHours() * 60 + n.getMinutes(), up = ev.find(e => e.m >= now);
+    return { ...(up || ev[0]), upcoming: !!up };
+  }
+  // Scale bar limited to 100 m … 10 km; falls back to Leaflet's own steps when zoomed in closer than 100 m.
+  const Scale = L.Control.Scale.extend({
+    _updateMetric(maxM) {
+      const m = [100, 500, 1000, 2000, 5000, 10000].filter(v => v <= maxM).pop();
+      if (!m) return L.Control.Scale.prototype._updateMetric.call(this, maxM);
+      this._updateScale(this._mScale, m >= 1000 ? m / 1000 + ' km' : m + ' m', m / maxM);
+    }
+  });
+  new Scale({ metric: true, imperial: false, maxWidth: 110, position: 'bottomleft' }).addTo(map);
+  const nextBar = h('div', { class: 'nextbar', hidden: true });
+  map.getContainer().append(nextBar);
+  L.DomEvent.disableClickPropagation(nextBar);
+  let nextPlace = null;
+  nextBar.addEventListener('click', () => { if (nextPlace) focusPlace(nextPlace); });
+  function updateNextBar() {
+    const a = activeDay(), ne = a && nextEvent(a);
+    nextPlace = ne ? ne.p : null; nextBar.hidden = !ne;
+    if (ne) nextBar.replaceChildren(ne.upcoming ? 'Next ' : 'Starts ', h('strong', { textContent: ne.t }), ' · ' + ne.p.name);
+  }
+  setInterval(updateNextBar, 60000);
+
+  function fitDay() {
+    const a = activeDay(); if (!a) return;
+    const pts = a.stops.map(placeById).filter(Boolean);
+    if (pts.length > 1) map.fitBounds(pts.map(p => [p.lat, p.lon]), { padding: [40, 40], maxZoom: 16 });
+    else if (pts.length === 1) goTo(pts[0]);
+  }
+
+  /* ---------- actions ---------- */
+  function commit() { save(); renderProjects(); refresh(); renderLegend(); renderResults(); }
+
+  function renderProjects() {
+    const sel = $('project'); sel.replaceChildren();
+    S.projects.forEach(p => sel.append(h('option', { value: p.id, textContent: p.name })));
+    sel.append(h('option', { value: '__new', textContent: '＋ New project' }));
+    sel.value = S.currentId;
+  }
+  function switchProject(id) {
+    S.currentId = id; selectedId = null; previewLayer.clearLayers(); map.closePopup(); commit();
+    if (activeDay()) fitDay();
+    else if (S.places.length) map.fitBounds(S.places.map(p => [p.lat, p.lon]), { padding: [40, 40], maxZoom: 15 });
+  }
+  function newProject() {
+    const n = prompt('Project name', `Trip ${S.projects.length + 1}`);
+    if (!n || !n.trim()) { renderProjects(); return; }
+    const pr = newProj(n.trim());
+    S.projects.push(pr); switchProject(pr.id);
+  }
+  function refresh() { renderMap(); renderDays(); renderPlaces(); }
+
+  function focusPlace(p) { selectedId = p.id; goTo(p); refresh(); }
+
+  function toggleInDay(d, p) {
+    const i = d.stops.indexOf(p.id);
+    if (i >= 0) { d.stops.splice(i, 1); delete d.times[p.id]; delete d.skipped[p.id]; } else d.stops.push(p.id);
+    commit();
+  }
+  function deletePlace(p) {
+    if (daysOf(p).length && !confirm(`Delete “${p.name}”? It will also be removed from your days.`)) return;
+    S.places = S.places.filter(x => x.id !== p.id);
+    S.days.forEach(d => { d.stops = d.stops.filter(id => id !== p.id); delete d.times[p.id]; });
+    if (selectedId === p.id) selectedId = null;
+    map.closePopup(); commit();
+  }
+  function renamePlace(p) {
+    const n = prompt('Rename place', p.name);
+    if (n && n.trim()) { p.name = n.trim(); map.closePopup(); commit(); }
+  }
+  function addDay() {
+    const last = S.days.map(x => x.date).filter(Boolean).sort().pop();
+    const base = last ? new Date(last + 'T12:00:00') : new Date();
+    if (last) base.setDate(base.getDate() + 1);
+    const d = { id: uid(), name: `Day ${S.days.length + 1}`, date: base.toLocaleDateString('sv'), stops: [], times: {}, skipped: {} };
+    S.days.push(d); S.activeDayId = d.id; selectedId = null; commit();
+  }
+  function activateDay(id) {
+    S.activeDayId = S.activeDayId === id ? null : id;
+    selectedId = null; commit();
+    if (S.activeDayId) fitDay();
+  }
+  function addPlace(s, cat) {
+    let p = findSaved(s);
+    if (p) p.cat = cat;
+    else { p = { id: uid(), key: s.key, name: s.name, detail: s.detail, lat: s.lat, lon: s.lon, bbox: s.bbox, cat, added: Date.now() }; S.places.push(p); }
+    previewLayer.clearLayers(); selectedId = p.id; commit();
+  }
+  const findSaved = s => S.places.find(p =>
+    (s.key && p.key === s.key) || (p.name === s.name && Math.abs(p.lat - s.lat) < 1e-6 && Math.abs(p.lon - s.lon) < 1e-6));
+
+  /* ---------- rendering: legend, days, places ---------- */
+  function renderLegend() {
+    const box = $('legend'); box.replaceChildren();
+    CAT_KEYS.forEach(k => box.append(h('button', {
+      type: 'button', class: 'lg' + (S.catOn[k] ? ' on' : ''), style: `--c:${CATS[k].color}`,
+      textContent: CATS[k].emoji, title: CATS[k].label, 'aria-label': CATS[k].label,
+      onclick: () => { S.catOn[k] = !S.catOn[k]; commit(); }
+    })));
+  }
+
+  const nameBtn = (p, sub) => h('button', { type: 'button', class: 'name', onclick: () => focusPlace(p) },
+    p.name, sub ? h('small', { textContent: sub }) : null);
+
+  function renderDays() {
+    const box = $('days'); box.replaceChildren();
+    const chips = h('div', { class: 'chips' });
+    S.days.forEach(d => chips.append(h('button', {
+      type: 'button', class: 'chip' + (d.id === S.activeDayId ? ' on' : ''),
+      textContent: d.name, onclick: () => activateDay(d.id)
+    })));
+    chips.append(h('button', { type: 'button', class: 'chip add', textContent: '＋ Day', onclick: addDay }));
+    box.append(chips);
+
+    const a = activeDay();
+    if (!a) return;
+    box.append(h('div', { class: 'dayhead' },
+      h('strong', { textContent: a.name }),
+      h('span', { class: 'btns' },
+        h('input', { type: 'date', class: 'tm', value: a.date || '', title: 'Date', 'aria-label': 'Date', onchange: e => { a.date = e.target.value || null; commit(); } }),
+        h('button', { type: 'button', class: 'secondary small', title: 'Rename day', 'aria-label': 'Rename day', textContent: '✎', onclick: () => {
+          const n = prompt('Rename day', a.name);
+          if (n && n.trim()) { a.name = n.trim(); commit(); }
+        } }),
+        h('button', { type: 'button', class: 'secondary small', title: 'Copy day as JSON (for AI editing)', 'aria-label': 'Copy day as JSON', innerHTML: COPY_ICON,
+          onclick: async e => { const b = e.currentTarget; if (await copyText(exportDay(a))) { b.textContent = '✓'; setTimeout(() => { b.innerHTML = COPY_ICON; }, 1200); } } }),
+        h('button', { type: 'button', class: 'secondary small', title: 'Delete day', 'aria-label': 'Delete day', textContent: '🗑', onclick: () => {
+          if (!confirm(`Delete ${a.name}? Your saved places are kept.`)) return;
+          S.days = S.days.filter(d => d.id !== a.id); S.activeDayId = null; commit();
+        } }))));
+
+    const items = a.stops.map(placeById).filter(Boolean);
+    if (!items.length) return;
+    const ul = h('ul', { class: 'list' });
+    items.forEach((p, i) => {
+      const move = d => () => { [a.stops[i], a.stops[i + d]] = [a.stops[i + d], a.stops[i]]; commit(); };
+      ul.append(h('li', { class: (p.id === selectedId ? 'sel' : '') + (a.skipped[p.id] ? ' skip' : '') },
+        h('span', { class: 'num', style: `background:${CATS[p.cat].color}`, textContent: i + 1 }),
+        h('div', { class: 'mid' }, nameBtn(p, p.detail),
+          h('input', { type: 'time', class: 'tm', value: a.times[p.id] || '', title: 'Start time', 'aria-label': 'Start time',
+            onchange: e => { if (e.target.value) a.times[p.id] = e.target.value; else delete a.times[p.id]; commit(); } })),
+        h('div', { class: 'btns' },
+          h('button', { type: 'button', class: a.skipped[p.id] ? 'small' : 'secondary small', title: a.skipped[p.id] ? 'Restore' : 'Grey out (skip)', 'aria-label': a.skipped[p.id] ? 'Restore' : 'Grey out (skip)',
+            textContent: a.skipped[p.id] ? '↺' : '⊘', onclick: () => { if (a.skipped[p.id]) delete a.skipped[p.id]; else a.skipped[p.id] = true; commit(); } }),
+          h('button', { type: 'button', class: 'secondary small', title: 'Move up', 'aria-label': 'Move up', textContent: '↑', disabled: i === 0, onclick: move(-1) }),
+          h('button', { type: 'button', class: 'secondary small', title: 'Move down', 'aria-label': 'Move down', textContent: '↓', disabled: i === items.length - 1, onclick: move(1) }),
+          h('button', { type: 'button', class: 'secondary small', title: 'Remove from day', 'aria-label': 'Remove from day', textContent: '✕', onclick: () => toggleInDay(a, p) }))));
+    });
+    box.append(ul);
+  }
+
+  function renderListFilter() {
+    const box = $('listFilter'); box.replaceChildren();
+    const byName = S.listSort === 'name';
+    box.append(h('button', {
+      type: 'button', class: 'secondary small', textContent: byName ? 'A–Z' : 'Newest', title: 'Sort order (tap to switch)', 'aria-label': 'Sort order: ' + (byName ? 'alphabetical' : 'newest first'),
+      onclick: () => { S.listSort = byName ? 'added' : 'name'; save(); renderPlaces(); }
+    }));
+    CAT_KEYS.forEach(k => box.append(h('button', {
+      type: 'button', class: 'lg' + (S.listFilter === k ? ' on' : ''), style: `--c:${CATS[k].color}`,
+      textContent: CATS[k].emoji, title: CATS[k].label, 'aria-label': `Filter list: ${CATS[k].label}`,
+      onclick: () => { S.listFilter = S.listFilter === k ? null : k; save(); renderPlaces(); }
+    })));
+  }
+
+  function renderPlaces() {
+    const ul = $('places'); ul.replaceChildren();
+    const a = activeDay();
+    renderListFilter();
+    const byAdded = (x, y) => x.added == null ? (y.added == null ? 0 : 1) : y.added == null ? -1 : y.added - x.added;   // newest first, undated last
+    const byName = (x, y) => x.name.localeCompare(y.name, undefined, { sensitivity: 'base', numeric: true });
+    const shown = S.places.filter(p => !S.listFilter || p.cat === S.listFilter).sort(S.listSort === 'name' ? byName : byAdded);
+    ul.hidden = shown.length === 0;
+    shown.forEach(p => {
+      const mem = daysOf(p).map(d => d.name).join(', ');
+      const hid = hiddenOnMap(p);
+      const sub = [mem && `In ${mem}`, hid === 'other' ? 'hidden on map' : hid === 'category' ? 'filtered out' : null, p.detail].filter(Boolean).join(' · ');
+      const inA = !!a && a.stops.includes(p.id);
+      ul.append(h('li', { class: p.id === selectedId ? 'sel' : '' },
+        h('button', {
+          type: 'button', class: 'catbtn', style: `background:${CATS[p.cat].color}`, textContent: CATS[p.cat].emoji,
+          title: `${CATS[p.cat].label} — tap to change category`, 'aria-label': `${CATS[p.cat].label}. Tap to change category`,
+          onclick: () => { p.cat = CAT_KEYS[(CAT_KEYS.indexOf(p.cat) + 1) % CAT_KEYS.length]; commit(); }
+        }),
+        nameBtn(p, sub),
+        h('div', { class: 'btns' },
+          h('button', {
+            type: 'button', class: 'secondary small', textContent: inA ? '✓' : '＋',
+            title: a ? (inA ? `Already in ${a.name}` : `Add to ${a.name}`) : 'Select a day first',
+            'aria-label': a ? (inA ? `Already in ${a.name}` : `Add to ${a.name}`) : 'Select a day first',
+            disabled: !a || inA, onclick: () => toggleInDay(a, p)
+          }),
+          h('button', { type: 'button', class: 'secondary small', title: 'Rename place', 'aria-label': 'Rename place', textContent: '✎', onclick: () => renamePlace(p) }),
+          h('button', { type: 'button', class: 'secondary small', title: 'Delete place', 'aria-label': 'Delete place', textContent: '✕', onclick: () => deletePlace(p) }))));
+    });
+  }
+
+  /* ---------- place search (OSM Nominatim) ---------- */
+  const resultsEl = $('results'), place = $('place');
+  const say = msg => { showingResults = false; previewLayer.clearLayers(); resultsEl.hidden = false; resultsEl.textContent = msg; };
+
+  function previewPlace(s) {
+    previewLayer.clearLayers();
+    L.circleMarker([s.lat, s.lon], { radius: 10, color: '#20231f', weight: 3, fillColor: '#fff', fillOpacity: .9, interactive: false }).addTo(previewLayer);
+    goTo(s);
+  }
+
+  function renderResults() {
+    if (!showingResults) return;
+    resultsEl.hidden = false; resultsEl.replaceChildren();
+    resultsEl.append(h('div', { class: 'rhead' },
+      h('button', { type: 'button', class: 'secondary small', title: 'Close results', 'aria-label': 'Close results', textContent: '✕',
+        onclick: () => { showingResults = false; resultsEl.hidden = true; previewLayer.clearLayers(); } })));
+    const ul = h('ul', { class: 'list' });
+    results.forEach(s => {
+      const saved = findSaved(s);
+      ul.append(h('li', {},
+        h('button', { type: 'button', class: 'name', onclick: () => previewPlace(s) }, s.name, s.detail ? h('small', { textContent: s.detail }) : null),
+        h('div', { class: 'btns' }, CAT_KEYS.map(k => h('button', {
+          type: 'button', class: 'catbtn' + (saved && saved.cat === k ? ' on' : ''), style: `background:${CATS[k].color}`,
+          title: `Save as ${CATS[k].label}`, 'aria-label': `Save as ${CATS[k].label}`, textContent: CATS[k].emoji,
+          onclick: () => addPlace(s, k)
+        })))));
+    });
+    resultsEl.append(ul);
+  }
+
+  async function searchPlaces() {
+    const q = place.value.trim();
+    if (!q) return;
+    say('Searching…');
+    try {
+      const km = +$('radius').value;
+      const b = map.getBounds();
+      let url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&accept-language=en&q=' + encodeURIComponent(q);
+      if (km) {   // visible area grown by km on every side
+        const lat = Math.min(85, Math.max(Math.abs(b.getNorth()), Math.abs(b.getSouth())));
+        const dLat = km / 111.32, dLon = km / (111.32 * Math.cos(lat * Math.PI / 180));
+        url += `&viewbox=${b.getWest() - dLon},${b.getNorth() + dLat},${b.getEast() + dLon},${b.getSouth() - dLat}&bounded=1`;
+      }
+      const r = await fetch(url);
+      let j = await r.json();
+      if (km) {   // distance from the view rectangle (0 if inside); in-view hits first
+        const dist = p => map.distance([Math.min(Math.max(+p.lat, b.getSouth()), b.getNorth()), Math.min(Math.max(+p.lon, b.getWest()), b.getEast())], [+p.lat, +p.lon]);
+        j = j.map(p => ({ p, d: dist(p) })).filter(x => x.d <= km * 1000).sort((x, y) => (x.d > 0) - (y.d > 0)).map(x => x.p);
+      }
+      j = j.slice(0, 8);
+      if (!j.length) {
+        say(km ? `No places found within ${km} km of the map view. Try a larger radius or move the map.` : 'No places found.');
+        return;
+      }
+      results = j.map(p => ({
+        key: `${p.osm_type}${p.osm_id}`,
+        name: p.name || p.display_name.split(',')[0],
+        detail: p.display_name.split(',').slice(1, 4).join(',').trim(),
+        lat: +p.lat, lon: +p.lon, bbox: p.boundingbox.map(Number)
+      }));
+      showingResults = true;
+      renderResults();
+      previewPlace(results[0]);
+    } catch (e) {
+      say('Place lookup failed — you can still pan the map manually.');
+    }
+  }
+
+  /* ---------- Tabelog URL ---------- */
+  const openSearch = url => window.open(url, '_blank', 'noopener');
+  function searchTabelog() {
+    const b = map.getBounds(), c = map.getCenter();
+    const p = new URLSearchParams({
+      maxLat: b.getNorth().toFixed(7), minLat: b.getSouth().toFixed(7),
+      maxLon: b.getEast().toFixed(7),  minLon: b.getWest().toFixed(7),
+      lat: c.lat.toFixed(7), lon: c.lng.toFixed(7), zoom: Math.round(map.getZoom())
+    });
+    openSearch(`https://tabelog.com/en/rstLst/?${p}`);
+  }
+  function searchGoogle() {
+    const c = map.getCenter().wrap(), z = Math.max(1, Math.min(21, Math.round(map.getZoom())));
+    const q = place.value.trim(), at = `@${c.lat.toFixed(7)},${c.lng.toFixed(7)},${z}z`;
+    openSearch(q ? `https://www.google.com/maps/search/${encodeURIComponent(q)}/${at}` : `https://www.google.com/maps/${at}`);
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
+    try { const ta = h('textarea', { value: t, style: 'position:fixed;opacity:0' }); document.body.append(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e) { return false; }
+  }
+
+  /* ---------- wiring ---------- */
+  $('search').addEventListener('click', searchTabelog);
+  $('gmaps').addEventListener('click', searchGoogle);
+  $('copyView').addEventListener('click', async e => {
+    const c = map.getCenter().wrap(), t = `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, btn = e.currentTarget;
+    if (await copyText(t)) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = '📋'; }, 1200); }
+    else say('Copy failed. View centre: ' + t);
+  });
+  $('go').addEventListener('click', searchPlaces);
+  place.addEventListener('keydown', e => { if (e.key === 'Enter') searchPlaces(); });
+  $('locate').addEventListener('click', () => {
+    if (!navigator.geolocation) return say('Your browser does not support location.');
+    if (!window.isSecureContext) {
+      return say('Location only works on a secure page (https:// or localhost), not when the file is opened directly. Host the file on https, or use the place search instead.');
+    }
+    say('Finding your location…');
+    navigator.geolocation.getCurrentPosition(
+      pos => { resultsEl.hidden = true; map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
+      err => say(err.code === 1
+        ? 'Location permission is blocked. Allow location for this page in your browser or site settings, then try again.'
+        : err.code === 3
+          ? 'Location timed out. Try again, or use the place search.'
+          : 'Your device could not determine a location. Check that location services are on, or use the place search.'),
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+    );
+  });
+
+  /* ---------- import ---------- */
+  const CAT_WORDS = {
+    food:  ['restaurant', 'restaurants', 'eat', 'eating', 'dining', 'cafe', 'café', 'coffee', 'bar', 'izakaya', 'ramen', 'sushi', 'bakery', 'dessert', 'drink', 'drinks'],
+    sleep: ['hotel', 'hotels', 'stay', 'lodging', 'accommodation', 'hostel', 'ryokan', 'inn', 'airbnb'],
+    see:   ['sight', 'sights', 'sightseeing', 'attraction', 'attractions', 'activity', 'activities', 'temple', 'shrine', 'museum', 'park', 'garden', 'landmark', 'viewpoint', 'shopping', 'visit', 'onsen']
+  };
+  const normCat = v => {
+    const t = String(v == null ? '' : v).toLowerCase().trim();
+    if (CATS[t]) return t;
+    for (const [k, words] of Object.entries(CAT_WORDS)) if (words.includes(t)) return k;
+    return 'other';
+  };
+  const knownCat = v => normCat(v) !== 'other' || /^(other|unsorted|none)$/i.test(String(v).trim());
+  const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  const coordsOk = (lat, lon) => lat != null && lon != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+
+  const fmt = (lat, lon) => `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  const mkCoords = (a, b) => {   // "lat, lon" order; swap if clearly reversed
+    let lat = +a, lon = +b;
+    if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) [lat, lon] = [lon, lat];
+    return coordsOk(lat, lon) ? [lat, lon] : [null, null];
+  };
+
+  function fromLine(raw) {
+    let s = String(raw).replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').replace(/\*\*|__|`/g, '').trim();
+    if (!s || /^[\[\]{},]+$/.test(s) || /:\s*$/.test(s) || /^name\b.*\blat/i.test(s)) return null;
+    let cat = 'other', lat = null, lon = null, address = '', name = '';
+    const pre = s.match(/^\[([^\]]+)\]\s*/) || s.match(/^(food|see|sleep|restaurant|hotel|sight)s?\s*:\s*/i);
+    if (pre) { cat = normCat(pre[1]); s = s.slice(pre[0].length); }
+
+    if (s.includes('|')) {
+      const parts = s.split('|').map(x => x.trim()).filter(Boolean);
+      name = parts.shift() || '';
+      const addr = [];
+      parts.forEach(x => {
+        const m = x.match(/^(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)$/);
+        if (m) [lat, lon] = mkCoords(m[1], m[2]);
+        else if (knownCat(x)) cat = normCat(x);
+        else addr.push(x);
+      });
+      address = addr.join(', ');
+    } else {
+      const m = s.match(/(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)/);   // decimals required, so street numbers don't match
+      if (m) {
+        [lat, lon] = mkCoords(m[1], m[2]);
+        name = (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).replace(/[()\[\]]/g, ' ').replace(/^[\s,;:|\-–]+|[\s,;:|\-–]+$/g, '').replace(/\s{2,}/g, ' ');
+      } else {
+        const i = s.indexOf(',');
+        name = i > 0 ? s.slice(0, i).trim() : s;
+        address = i > 0 ? s.slice(i + 1).trim() : '';
+      }
+    }
+    if (lat != null && !name) name = fmt(lat, lon);
+    return name ? { name, cat, address, lat, lon } : null;
+  }
+
+  function fromObject(o) {
+    if (typeof o === 'string') return [fromLine(o)];
+    if (!o || typeof o !== 'object') return [];
+    // GeoJSON Feature / geometry
+    const g = o.type === 'Feature' ? o.geometry : (o.coordinates && o.type ? o : null);
+    if (g && g.coordinates) {
+      const props = o.properties || {};
+      const pts = g.type === 'Point' ? [g.coordinates]
+        : g.type === 'MultiPoint' ? g.coordinates
+        : [g.coordinates.flat(Infinity).reduce((acc, v, i) => { acc[i % 2].push(v); return acc; }, [[], []]).map(a => a.reduce((x, y) => x + y, 0) / a.length)];
+      return pts.map((c, i) => {
+        const [lat, lon] = mkCoords(c[1], c[0]);       // GeoJSON is [lon, lat]
+        if (lat == null) return null;
+        const name = String(props.name || props.Name || props.title || props.label || '').trim() || fmt(lat, lon);
+        return { name: pts.length > 1 ? `${name} ${i + 1}` : name, cat: normCat(props.category || props.type || props.kind || props.label),
+          address: String(props.address || props.description || '').trim(), lat, lon };
+      });
+    }
+    const lat0 = num(o.lat ?? o.latitude), lon0 = num(o.lon ?? o.lng ?? o.longitude);
+    const [lat, lon] = coordsOk(lat0, lon0) ? [lat0, lon0] : [null, null];
+    const name = String(o.name || o.title || o.place || '').trim() || (lat != null ? fmt(lat, lon) : '');
+    if (!name) return [];
+    return [{ name, cat: normCat(o.category || o.type || o.label),
+      address: String(o.address || o.location || o.area || '').trim(), lat, lon, date: o.date || null, time: o.time || null }];
+  }
+
+  function parseIcs(t) {
+    const out = []; let ev = null;
+    const unesc = v => v.replace(/\\n/gi, ', ').replace(/\\([,;\\])/g, '$1').trim();
+    for (const ln of t.replace(/\r?\n[ \t]/g, '').split(/\r?\n/)) {
+      if (/^BEGIN:VEVENT/i.test(ln)) ev = {};
+      else if (/^END:VEVENT/i.test(ln)) { if (ev) out.push(ev); ev = null; }
+      else if (ev) {
+        const ap = ln.match(/^X-APPLE-STRUCTURED-LOCATION.*geo:(-?[\d.]+),(-?[\d.]+)/i);
+        if (ap) { if (ev.lat == null) [ev.lat, ev.lon] = mkCoords(ap[1], ap[2]); continue; }
+        const i = ln.indexOf(':'); if (i < 0) continue;
+        const k = ln.slice(0, i).split(';')[0].toUpperCase(), v = ln.slice(i + 1);
+        if (k === 'SUMMARY') ev.name = unesc(v);
+        else if (k === 'LOCATION') ev.address = unesc(v);
+        else if (k === 'GEO') { const [a, b] = v.split(';'); [ev.lat, ev.lon] = mkCoords(a, b); }
+        else if (k === 'DTSTART') {
+          const m = v.match(/^(\d{4})(\d\d)(\d\d)(?:T(\d\d)(\d\d))?/);
+          if (m) { ev.date = `${m[1]}-${m[2]}-${m[3]}`; if (m[4]) ev.time = `${m[4]}:${m[5]}`; }
+        }
+      }
+    }
+    return out.filter(e => e.name || e.address);
+  }
+
+  function parseImport(text) {
+    if (/BEGIN:VCALENDAR|BEGIN:VEVENT/i.test(text)) return parseIcs(text).map(e => ({
+      name: e.name || e.address.split(',')[0], cat: 'other', address: e.address || '',
+      lat: e.lat ?? null, lon: e.lon ?? null, date: e.date || null, time: e.time || null }));
+    const t = text.trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+    const arr = t.match(/\[[\s\S]*\]/), obj = t.match(/\{[\s\S]*\}/);
+    for (const cand of [t, arr && arr[0], obj && obj[0]]) {
+      if (!cand) continue;
+      try {
+        let j = JSON.parse(cand);
+        if (j.type === 'FeatureCollection') j = j.features || [];
+        else if (j.type === 'GeometryCollection') j = j.geometries || [];
+        else if (!Array.isArray(j) && !j.type) j = j.places || j.items || j.locations || j.features || [j];
+        else if (!Array.isArray(j)) j = [j];
+        return [].concat(...j.map(fromObject)).filter(Boolean);
+      } catch (e) {}
+    }
+    return t.split(/\r?\n/).map(fromLine).filter(Boolean);
+  }
+
+  // Nominatim asks for at most one request per second.
+  let lastReq = 0;
+  async function geocode(q) {
+    const wait = 1100 - (Date.now() - lastReq);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    lastReq = Date.now();
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=en&q=' + encodeURIComponent(q));
+    const j = await r.json();
+    return j[0] || null;
+  }
+
+  const impSay = msg => { $('impMsg').hidden = !msg; $('impMsg').textContent = msg; };
+
+  function schedule(p, it) {
+    if (!/^\d{4}-\d\d-\d\d$/.test(it.date || '')) return false;
+    let d = S.days.find(x => x.date === it.date);
+    if (!d) { d = { id: uid(), name: `Day ${S.days.length + 1}`, date: it.date, stops: [], times: {}, skipped: {} }; S.days.push(d); }
+    if (!d.stops.includes(p.id)) d.stops.push(p.id);
+    if (/^\d\d:\d\d$/.test(it.time || '')) d.times[p.id] = it.time;
+    firstDay = firstDay || d;
+    return true;
+  }
+  let firstDay = null;
+  /* ---------- exchange format (day-level export, diff-previewed import) ---------- */
+  const COPY_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.5"/></svg>';
+  const hashStr = t => { let x = 5381; for (const c of t) x = ((x * 33) ^ c.charCodeAt(0)) >>> 0; return x.toString(36); };
+  function dayState(d) {
+    return {
+      places: d.stops.map(placeById).filter(Boolean).map(p => ({ id: p.id, name: p.name, cat: p.cat, lat: +(+p.lat).toFixed(6), lon: +(+p.lon).toFixed(6), detail: p.detail || '' })),
+      stops: d.stops.filter(placeById).map(id => ({ place: id, time: d.times[id] || null, skipped: !!d.skipped[id] }))
+    };
+  }
+  function exportDay(d) {
+    const st = dayState(d);
+    return JSON.stringify({
+      format: 'japlanr', version: 1, rev: hashStr(JSON.stringify(st)),
+      note: 'Return the full JSON only. stops order = itinerary order; time is HH:MM or null. Keep ids of existing places. A new place needs a unique new id (e.g. "new1"), name, cat (food|see|sleep|other), lat, lon. Remove a stop to drop it from the day.',
+      day: { id: d.id, name: d.name, date: d.date }, ...st
+    }, null, 1);
+  }
+  function exportProject() {
+    return JSON.stringify({
+      format: 'japlanr', version: 1, scope: 'project',
+      note: 'Return the full JSON only. Each day: stops order = itinerary order; time is HH:MM or null. Keep ids of existing places and days. A new place needs a unique new id (e.g. "new1"), name, cat (food|see|sleep|other), lat, lon; a new day needs a new id, name and date (YYYY-MM-DD). Days left out of the list are left unchanged; places are never deleted by an import.',
+      places: S.places.map(p => ({ id: p.id, name: p.name, cat: p.cat, lat: +(+p.lat).toFixed(6), lon: +(+p.lon).toFixed(6), detail: p.detail || '' })),
+      days: S.days.map(d => ({ id: d.id, name: d.name, date: d.date, rev: hashStr(JSON.stringify(dayState(d))), stops: dayState(d).stops }))
+    }, null, 1);
+  }
+  function previewExchange(raw) {
+    const box = $('exPrev'); box.replaceChildren(); box.hidden = true; impSay('');
+    const fail = errs => {
+      box.hidden = false; box.className = 'exp';
+      box.append(h('div', { class: 'del', textContent: 'Import failed — nothing was changed:' }), ...errs.slice(0, 8).map(e => h('div', { textContent: '• ' + e })));
+    };
+    let o; try { o = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) { return fail(['Not valid JSON (' + e.message + ')']); }
+    if (o.format !== 'japlanr' || o.version !== 1) return fail(['Unsupported format or version.']);
+    const single = !Array.isArray(o.days);
+    const dayList = single ? (o.day && Array.isArray(o.stops) ? [{ ...o.day, rev: o.rev, stops: o.stops }] : null) : o.days;
+    if (!dayList || !Array.isArray(o.places) || dayList.some(x => !x || !Array.isArray(x.stops))) return fail(['Missing days, places or stops.']);
+    const errs = [], ids = new Set(), pm = new Map(), newPlaces = [], changes = [];
+    const inR = (v, m) => typeof v === 'number' && Math.abs(v) <= m;
+    o.places.forEach((q, i) => {
+      const tag = `Place ${i + 1}${q && q.name ? ' (' + q.name + ')' : ''}`;
+      if (!q || typeof q.id !== 'string' || !q.id) return errs.push(tag + ': missing id.');
+      if (ids.has(q.id)) return errs.push(tag + ': duplicate id.');
+      ids.add(q.id);
+      const f = { name: String(q.name || '').trim(), cat: CAT_KEYS.includes(q.cat) ? q.cat : 'other', lat: Number(q.lat), lon: Number(q.lon), detail: String(q.detail || '') };
+      if (!f.name) return errs.push(tag + ': missing name.');
+      if (q.lat == null || q.lon == null || !inR(f.lat, 90) || !inR(f.lon, 180)) return errs.push(tag + ': needs valid lat/lon.');
+      const cur = placeById(q.id);
+      if (cur) {
+        const d = {}; ['name', 'cat', 'detail'].forEach(k => { if (f[k] !== (cur[k] || '')) d[k] = f[k]; });
+        if (Math.abs(f.lat - cur.lat) > 1e-5 || Math.abs(f.lon - cur.lon) > 1e-5) { d.lat = f.lat; d.lon = f.lon; }
+        if (Object.keys(d).length) changes.push({ p: cur, d });
+        pm.set(q.id, cur.id);
+      } else {
+        const dup = findSaved(f);
+        if (dup) pm.set(q.id, dup.id);
+        else { const np = { id: uid(), ...f, added: Date.now() }; newPlaces.push(np); pm.set(q.id, np.id); }
+      }
+    });
+    const plans = [], usedDays = new Set();
+    dayList.forEach((dd, k) => {
+      const lab = `Day ${k + 1}${dd.name ? ' (' + dd.name + ')' : ''}`;
+      const seen = new Set(), stops = [];
+      dd.stops.forEach((st, i) => {
+        const pid = st && (pm.get(st.place) || (placeById(st.place) ? st.place : null));
+        if (!pid) return errs.push(`${lab}, stop ${i + 1}: unknown place "${st && st.place}".`);
+        if (seen.has(pid)) return errs.push(`${lab}, stop ${i + 1}: place listed twice.`);
+        if (st.time != null && st.time !== '' && !/^\d\d:\d\d$/.test(st.time)) return errs.push(`${lab}, stop ${i + 1}: time must be HH:MM.`);
+        seen.add(pid); stops.push({ id: pid, time: st.time || null, skipped: !!st.skipped });
+      });
+      const d = S.days.find(x => x.id === dd.id) || (dd.date && S.days.find(x => x.date === dd.date)) || null;
+      if (d) { if (usedDays.has(d.id)) errs.push(`${lab}: matches the same day as another entry.`); usedDays.add(d.id); }
+      plans.push({ dd, d, stops });
+    });
+    if (errs.length) return fail(errs);
+    const nm = id => (newPlaces.find(p => p.id === id) || placeById(id)).name;
+    const placeLines = [];
+    newPlaces.forEach(p => placeLines.push(['add', `New place: ${p.name}`]));
+    changes.forEach(c => placeLines.push(['chg', `Place edited: ${c.p.name}` + (c.d.name ? ` → ${c.d.name}` : '') + (c.d.lat != null ? ' (moved)' : '') + (c.d.cat ? ' (category)' : '') + (c.d.detail != null ? ' (details)' : '')]));
+    let nn = S.days.length, total = placeLines.length;
+    plans.forEach(pl => {
+      const { dd, d, stops } = pl, lines = pl.lines = [];
+      pl.name = String(dd.name || '').trim() || (d ? d.name : `Day ${++nn}`);
+      pl.date = /^\d{4}-\d\d-\d\d$/.test(dd.date || '') ? dd.date : (d ? d.date : null);
+      pl.newIds = stops.map(x => x.id);
+      const curIds = d ? d.stops : [];
+      if (!d) lines.push(['add', `New day: ${pl.name}`]);
+      else { if (pl.name !== d.name) lines.push(['chg', `Day renamed: ${d.name} → ${pl.name}`]); if (pl.date !== d.date) lines.push(['chg', `Date: ${d.date || '—'} → ${pl.date || '—'}`]); }
+      pl.newIds.filter(id => !curIds.includes(id)).forEach(id => lines.push(['add', `Added to day: ${nm(id)}`]));
+      curIds.filter(id => !pl.newIds.includes(id)).forEach(id => lines.push(['del', `Removed from day: ${nm(id)} (stays in saved places)`]));
+      stops.forEach(x => {
+        if (!d || !curIds.includes(x.id)) return;
+        const ct = d.times[x.id] || null;
+        if (ct !== x.time) lines.push(['chg', `Time: ${nm(x.id)} ${ct || '—'} → ${x.time || '—'}`]);
+        if (!!d.skipped[x.id] !== x.skipped) lines.push(['chg', `${nm(x.id)}: ${x.skipped ? 'greyed out' : 'restored'}`]);
+      });
+      const both = (a, b) => a.filter(id => b.includes(id)).join();
+      if (d && both(curIds, pl.newIds) !== both(pl.newIds, curIds)) lines.push(['chg', 'Stop order changed']);
+      pl.stale = d && dd.rev && dd.rev !== hashStr(JSON.stringify(dayState(d)));
+      total += lines.length;
+    });
+    const anyStale = plans.some(p => p.stale);
+    const apply = () => {
+      newPlaces.forEach(p => S.places.push(p));
+      changes.forEach(c => Object.assign(c.p, c.d));
+      let last = null;
+      plans.forEach(pl => {
+        let t = pl.d;
+        if (!t) { t = { id: uid(), name: pl.name, date: pl.date, stops: [], times: {}, skipped: {} }; S.days.push(t); }
+        t.name = pl.name; t.date = pl.date; t.stops = pl.newIds; t.times = {}; t.skipped = {};
+        pl.stops.forEach(x => { if (x.time) t.times[x.id] = x.time; if (x.skipped) t.skipped[x.id] = true; });
+        last = t;
+      });
+      if (single && last) S.activeDayId = last.id;
+      box.hidden = true; box.replaceChildren(); $('impPanel').hidden = true; $('impText').value = '';
+      commit();
+    };
+    const cancel = () => { box.hidden = true; box.replaceChildren(); };
+    const row = ([c, t]) => h('div', { class: c, textContent: (c === 'add' ? '＋ ' : c === 'del' ? '− ' : '✎ ') + t });
+    box.hidden = false; box.className = 'exp';
+    box.append(h('strong', { textContent: single ? `Review changes to “${plans[0].name}”` : `Review changes to ${plans.length} day${plans.length === 1 ? '' : 's'}` }));
+    if (placeLines.length) { if (!single) box.append(h('strong', { textContent: 'Places' })); placeLines.forEach(l => box.append(row(l))); }
+    plans.forEach(pl => {
+      if (!single && (pl.lines.length || pl.stale)) box.append(h('strong', { textContent: pl.name }));
+      if (pl.stale) box.append(h('div', { class: 'del', textContent: 'Warning: changed in the app after you exported it. Changes are measured against its current state and may overwrite newer edits.' }));
+      pl.lines.forEach(l => box.append(row(l)));
+    });
+    if (!total) box.append(h('div', { textContent: 'No changes.' }));
+    box.append(h('div', { class: 'exbtns' },
+      h('button', { type: 'button', textContent: anyStale ? 'Apply anyway' : 'Apply', disabled: !total, onclick: apply }),
+      h('button', { type: 'button', class: 'secondary', textContent: 'Cancel', onclick: cancel })));
+  }
+
+  async function runImport() {
+    firstDay = null;
+    if (/"format"\s*:\s*"japlanr"/.test($('impText').value)) return previewExchange($('impText').value);
+    const items = parseImport($('impText').value);
+    if (!items.length) return impSay('Nothing to import.');
+    $('impGo').disabled = true;
+    let added = 0, dupes = 0, sched = 0;
+    const failed = [], pts = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      impSay(`Importing ${i + 1} of ${items.length}…`);
+      let hit = null, lat = it.lat, lon = it.lon, bbox = null, key = null, geoDetail = '';
+      if (lat == null) {
+        try {
+          let g = await geocode([it.name, it.address].filter(Boolean).join(', '));
+          if (!g && it.address) g = await geocode(it.address);
+          if (g) {
+            lat = +g.lat; lon = +g.lon; bbox = g.boundingbox.map(Number);
+            key = `${g.osm_type}${g.osm_id}`;
+            geoDetail = g.display_name.split(',').slice(1, 4).join(',').trim();
+          }
+        } catch (e) {}
+      }
+      if (lat == null) { failed.push(it); continue; }
+      const cand = { name: it.name, detail: it.address || geoDetail, lat, lon, bbox, key };
+      let p = findSaved(cand);
+      if (p) dupes++;
+      else { p = { id: uid(), ...cand, cat: it.cat, added: Date.now() }; S.places.push(p); added++; }
+      pts.push([lat, lon]);
+      if (schedule(p, it)) sched++;
+    }
+    selectedId = null;
+    if (firstDay) { S.days.sort((x, y) => (x.date || '').localeCompare(y.date || '')); S.activeDayId = firstDay.id; }
+    commit();
+    if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
+    $('impGo').disabled = false;
+    $('impText').value = failed.length
+      ? JSON.stringify(failed.map(f => ({ name: f.name, ...(f.cat !== 'other' ? { category: f.cat } : {}), ...(f.address ? { address: f.address } : {}), ...(f.date ? { date: f.date, time: f.time } : {}) })), null, 2)
+      : '';
+    impSay([`Added ${added}`, dupes ? `${dupes} already saved` : '', sched ? `${sched} scheduled` : '', failed.length ? `not found: ${failed.map(f => f.name).join(', ')}` : ''].filter(Boolean).join(' · '));
+  }
+
+  $('impToggle').addEventListener('click', () => { const p = $('impPanel'); p.hidden = !p.hidden; });
+  $('impGo').addEventListener('click', runImport);
+  $('impFile').addEventListener('change', async e => { const f = e.target.files[0]; if (f) $('impText').value = await f.text(); e.target.value = ''; });
+  $('radius').value = S.radius;
+  $('radius').addEventListener('change', e => { S.radius = e.target.value; save(); });
+
+  $('optHide').checked = S.hideOthers;
+  $('optArrows').checked = S.arrows;
+  $('optHide').addEventListener('change', e => { S.hideOthers = e.target.checked; commit(); });
+  $('optArrows').addEventListener('change', e => { S.arrows = e.target.checked; commit(); });
+  $('project').addEventListener('change', e => { if (e.target.value === '__new') newProject(); else switchProject(e.target.value); });
+  $('bkDownload').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: `japlanr-backup-${new Date().toLocaleDateString('sv')}.json` });
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  });
+  $('bkRestore').addEventListener('click', () => $('bkFile').click());
+  $('bkFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    let j; try { j = JSON.parse(await file.text()); } catch (err) { return alert('Not a valid backup file.'); }
+    if (!j || !Array.isArray(j.projects) || !j.projects.length || !j.projects.every(p => p && Array.isArray(p.places) && Array.isArray(p.days))) return alert('This does not look like a backup of this app.');
+    if (!confirm(`Replace ALL current data with the backup (${j.projects.length} project${j.projects.length === 1 ? '' : 's'})?`)) return;
+    try { localStorage.setItem('tabelogPlanner.prev', localStorage.getItem('tabelogPlanner') || ''); localStorage.setItem('tabelogPlanner', JSON.stringify(j)); } catch (err) { return alert('Could not write to storage.'); }
+    location.reload();
+  });
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  $('projCopy').addEventListener('click', async e => {
+    const b = e.currentTarget;
+    if (await copyText(exportProject())) { b.textContent = '✓'; setTimeout(() => { b.innerHTML = COPY_ICON; }, 1200); }
+  });
+  $('projRename').addEventListener('click', () => {
+    const pr = S.projects.find(p => p.id === S.currentId);
+    const n = prompt('Rename project', pr.name);
+    if (n && n.trim()) { pr.name = n.trim(); commit(); }
+  });
+  $('projDelete').addEventListener('click', () => {
+    const pr = S.projects.find(p => p.id === S.currentId);
+    if (!confirm(`Delete “${pr.name}” and all its places and days? This cannot be undone.`)) return;
+    S.projects = S.projects.filter(p => p !== pr);
+    if (!S.projects.length) S.projects.push(newProj('My trip'));
+    switchProject(S.projects[0].id);
+  });
+
+  commit();
+  if (activeDay()) fitDay();
+  else if (S.places.length) map.fitBounds(S.places.map(p => [p.lat, p.lon]), { padding: [40, 40], maxZoom: 15 });
+})();
+</script>
+</body>
+</html>
