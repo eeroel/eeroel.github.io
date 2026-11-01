@@ -404,7 +404,9 @@
   function nextEvent(a) {
     const ev = a.stops.map(id => ({ p: placeById(id), t: a.times[id], m: toMin(a.times[id]) })).filter(e => e.p && e.m != null && !a.skipped[e.p.id]).sort((x, y) => x.m - y.m);
     if (!ev.length) return null;
-    const n = new Date(), now = n.getHours() * 60 + n.getMinutes(), up = ev.find(e => e.m >= now);
+    const n = new Date(), now = n.getHours() * 60 + n.getMinutes();
+    const today = n.toLocaleDateString('sv'), future = a.date && a.date > today, past = a.date && a.date < today;
+    const up = future ? ev[0] : past ? null : ev.find(e => e.m >= now);   // clock only matters on today's day
     return { ...(up || ev[0]), upcoming: !!up };
   }
   // Scale bar limited to 100 m … 10 km; falls back to Leaflet's own steps when zoomed in closer than 100 m.
